@@ -1,10 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
 using System.Windows.Forms;
 using System.IO;
 using System.Windows.Media;
@@ -35,52 +30,58 @@ namespace OpenAP_FileConverter
 
         private void convertButton_Click( object sender, EventArgs e )
         {
-            var srcPath = srcPathTextBox.Text;
-            var dstPath = dstPathTextBox.Text;
-            
-            Properties.Settings.Default.SrcPath = srcPath;
-            Properties.Settings.Default.DstPath = dstPath;
-            Properties.Settings.Default.Save();
+            try {
+                convertButton.Enabled = false;
 
-            dstPath = Path.Combine( dstPath, Path.GetFileName( srcPath ) );
+                var srcPath = srcPathTextBox.Text;
+                var dstPath = dstPathTextBox.Text;
 
-            var srcExt = srcExtComboBox.Text;
-            if( srcExt.IndexOf( ' ' ) != -1 ) {
-                srcExt = srcExt.Substring( 0, srcExt.IndexOf( ' ' ) );
-            }
+                Properties.Settings.Default.SrcPath = srcPath;
+                Properties.Settings.Default.DstPath = dstPath;
+                Properties.Settings.Default.Save();
 
-            if( !Directory.Exists( dstPath ) ) {
-                Directory.CreateDirectory( dstPath );
-            }
-            VisualTask.Run( this, null, log =>
-            {
-                int count = 0;
-                foreach( var filePath in Directory.GetFiles( srcPath, srcExt ) ) {
-                    log.Trace( Path.GetFileName( filePath ) );
-                    
-                    var imageInfo = readImageInfo( filePath );
-                    var width = int.Parse( imageInfo["IMAGE_WIDTH"] );
-                    var height = int.Parse( imageInfo["IMAGE_HEIGHT"] );
-                    System.Diagnostics.Trace.Assert( imageInfo["PIXEL_FORMAT"] == "u16" );
-                    log.Trace( "-> {0}x{1}", width, height );
+                dstPath = Path.Combine( dstPath, Path.GetFileName( srcPath ) );
 
-                    var pixels = new ushort[width * height]; 
-                    using( var stream = File.OpenRead( filePath ) ) {
-                        using( var reader = new BinaryReader( stream ) ) {
-                            for( int pos = 0; pos < pixels.Length; pos++ ) {
-                                pixels[pos] = reader.ReadUInt16();
+                var srcExt = srcExtComboBox.Text;
+                if( srcExt.IndexOf( ' ' ) != -1 ) {
+                    srcExt = srcExt.Substring( 0, srcExt.IndexOf( ' ' ) );
+                }
+
+                if( !Directory.Exists( dstPath ) ) {
+                    Directory.CreateDirectory( dstPath );
+                }
+                VisualTask.Run( this, null, log =>
+                {
+                    int count = 0;
+                    foreach( var filePath in Directory.GetFiles( srcPath, srcExt ) ) {
+                        log.Trace( Path.GetFileName( filePath ) );
+
+                        var imageInfo = readImageInfo( filePath );
+                        var width = int.Parse( imageInfo["IMAGE_WIDTH"] );
+                        var height = int.Parse( imageInfo["IMAGE_HEIGHT"] );
+                        System.Diagnostics.Trace.Assert( imageInfo["PIXEL_FORMAT"] == "u16" );
+                        log.Trace( "-> {0}x{1}", width, height );
+
+                        var pixels = new ushort[width * height];
+                        using( var stream = File.OpenRead( filePath ) ) {
+                            using( var reader = new BinaryReader( stream ) ) {
+                                for( int pos = 0; pos < pixels.Length; pos++ ) {
+                                    pixels[pos] = reader.ReadUInt16();
+                                }
                             }
                         }
+                        save16BitGrayTiff( Path.Combine( dstPath, Path.GetFileNameWithoutExtension( filePath ) + ".tif" ),
+                            pixels, width, height, imageInfo );
+
+                        log.Trace( "-> ОК", width, height );
+                        count++;
+
                     }
-                    save16BitGrayTiff( Path.Combine( dstPath, Path.GetFileNameWithoutExtension( filePath ) + ".tif" ),
-                        pixels, width, height, imageInfo );
-
-                    log.Trace( "-> ОК", width, height );
-                    count++;
-
-                }
-                log.TraceFinished( "Converted {0} frames.", count );
-            } );
+                    log.TraceFinished( "Converted {0} frames.", count );
+                } );
+            } finally {
+                convertButton.Enabled = true;
+            }
         }
 
         static Dictionary<string, string> readImageInfo( string filePath )
