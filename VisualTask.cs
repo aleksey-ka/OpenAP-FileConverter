@@ -132,7 +132,7 @@ namespace OpenAP_FileConverter
             public LogView( Form owner, string _caption )
             {
                 caption = _caption;
-                Text = caption != null ? caption : "Operation progress (ESC to stop)...";
+                Text = caption != null ? caption : "Operation progress (press ESC to stop)...";
                 Height = 200;
                 Width = owner.Width;
                 MinimizeBox = false;
